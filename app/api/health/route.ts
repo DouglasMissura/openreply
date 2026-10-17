@@ -5,7 +5,8 @@ import { getWorkerHealth } from "@/lib/ops/worker-health";
 
 export const runtime = "nodejs";
 // Health must reflect live state (worker heartbeat, queue depth), never a
-// cached response, or it reports stale worker start times.
+// cached response, or it reports stale worker state. The endpoint is public, so
+// technical error messages go to the server log, never to the response.
 export const dynamic = "force-dynamic";
 
 type CheckStatus = "ok" | "error";
@@ -20,10 +21,8 @@ async function checkDatabase(): Promise<HealthCheck> {
     await prisma.$queryRaw`SELECT 1`;
     return { status: "ok" };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Database check failed",
-    };
+    console.error("Health database check failed", error);
+    return { status: "error", detail: "Database check failed" };
   }
 }
 
@@ -32,10 +31,8 @@ async function checkRedis(): Promise<HealthCheck> {
     const pong = await getRedisConnection().ping();
     return { status: pong === "PONG" ? "ok" : "error", detail: pong };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Redis check failed",
-    };
+    console.error("Health redis check failed", error);
+    return { status: "error", detail: "Redis check failed" };
   }
 }
 
@@ -73,10 +70,8 @@ async function checkQueue(): Promise<HealthCheck & { counts?: unknown }> {
     }
     return { status: "ok", counts };
   } catch (error) {
-    return {
-      status: "error",
-      detail: error instanceof Error ? error.message : "Queue check failed",
-    };
+    console.error("Health queue check failed", error);
+    return { status: "error", detail: "Queue check failed" };
   }
 }
 
@@ -85,12 +80,15 @@ export async function GET() {
     checkDatabase(),
     checkRedis(),
     checkQueue(),
-    getWorkerHealth().catch((error) => ({
-      healthy: false,
-      heartbeat: null,
-      ageMs: null,
-      error: error instanceof Error ? error.message : "Worker check failed",
-    })),
+    // The heartbeat carries the worker hostname and pid; the public response
+    // keeps only whether it is healthy and how old the heartbeat is.
+    getWorkerHealth().then(
+      ({ healthy, ageMs }) => ({ healthy, ageMs }),
+      (error) => {
+        console.error("Health worker check failed", error);
+        return { healthy: false, ageMs: null };
+      }
+    ),
   ]);
 
   const healthy =
