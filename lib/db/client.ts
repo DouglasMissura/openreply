@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { databaseConnectionOptions } from "@/lib/utils/tls";
 import { PrismaClient } from "@/app/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as {
@@ -20,7 +21,7 @@ function createPrismaClient() {
   // on the worker, which is a single long-lived process.
   return new PrismaClient({
     adapter: new PrismaPg({
-      connectionString: databaseUrl,
+      ...databaseConnectionOptions(databaseUrl),
       max: Number(process.env.DB_POOL_MAX ?? 3),
       idleTimeoutMillis: 10_000,
     }),
