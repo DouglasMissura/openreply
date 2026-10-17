@@ -5,6 +5,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/client";
 import { ensureWorkspaceForUser, getPrimaryWorkspace } from "@/lib/workspace";
 import { isEmailAllowedToSignIn } from "@/lib/env";
+import { allowMagicLinkRequest } from "@/lib/login-rate-limit";
 
 type AdapterPrismaClient = Parameters<typeof PrismaAdapter>[0];
 
@@ -33,8 +34,14 @@ export const authConfig = {
   callbacks: {
     // Runs before the magic link is sent, so a blocked address never receives
     // one, and again when the link is verified.
-    async signIn({ user }) {
-      return isEmailAllowedToSignIn(user?.email);
+    async signIn({ user, email }) {
+      if (!isEmailAllowedToSignIn(user?.email)) return false;
+      // Only the request phase sends an email; clicking the link never counts.
+      // A refused request gets the same AccessDenied as a blocked address.
+      if (email?.verificationRequest) {
+        return allowMagicLinkRequest(user.email ?? "");
+      }
+      return true;
     },
     async session({ session, user }) {
       if (session.user) {

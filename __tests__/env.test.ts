@@ -32,13 +32,16 @@ describe("environment helpers", () => {
 });
 
 describe("sign-in allowlist", () => {
-  it("allows everyone when ALLOWED_EMAILS is unset", () => {
-    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(true);
+  it("denies everyone when ALLOWED_EMAILS is unset", () => {
+    vi.stubEnv("ALLOWED_EMAILS", undefined);
+    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(false);
   });
 
-  it("allows everyone when ALLOWED_EMAILS is empty or only separators", () => {
+  it("denies everyone when ALLOWED_EMAILS is empty or only separators", () => {
+    vi.stubEnv("ALLOWED_EMAILS", "");
+    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(false);
     vi.stubEnv("ALLOWED_EMAILS", "  , ,  ");
-    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(true);
+    expect(isEmailAllowedToSignIn("anyone@example.com")).toBe(false);
   });
 
   it("only allows listed addresses once ALLOWED_EMAILS is set", () => {
