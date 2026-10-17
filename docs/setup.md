@@ -55,7 +55,7 @@ Do Railway first, because Vercel needs the database URLs from it.
    Build Command:  npm run db:generate
    Start Command:  npm run worker
    ```
-   The worker only needs the generated Prisma client, not `next build`. Do not leave the build as the default `npm run build`: it runs `next build` needlessly, and any build step that reaches the database (like `prisma migrate deploy`) fails here, because the worker cannot connect to Postgres at build time. Migrations are applied by the web app's `vercel-build` (Step 3) and by the manual `db:migrate` below, never by the worker.
+   O worker precisa apenas do cliente Prisma gerado, sem executar `next build`. Configure o Pre-deploy Command do worker no Railway como `npx --no-install prisma migrate deploy`: as migrações rodam nessa etapa, com acesso à rede interna, antes de iniciar o worker. Elas não rodam durante o build do worker nem no `vercel-build` da Vercel. O comando manual `db:migrate` abaixo continua disponível.
 6. Open the worker service's Variables and add the shared environment variables and any variables required by your chosen provider from the [table below](#environment-variables). For the worker, use Railway's internal database and Redis hostnames (they look like `postgres.railway.internal` and `redis.railway.internal`); inside Railway's network they are faster and free of egress. `NEXTAUTH_URL` is your Vercel domain. `ENCRYPTION_KEY` must be the exact same value you will use on Vercel.
 
 Getting the connection URLs. Open the Postgres service, then its Variables or Connect tab. You will see two URLs:
