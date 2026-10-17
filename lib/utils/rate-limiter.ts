@@ -15,6 +15,7 @@
  */
 
 import Redis from "ioredis";
+import { redisConnectionOptions } from "@/lib/utils/tls";
 
 const RATE_LIMIT_MAX = 750; // private replies per hour, per Meta's documented cap
 const RATE_LIMIT_WINDOW = 3600; // 1 hour in seconds
@@ -26,6 +27,7 @@ let redis: Redis | null = null;
 function getRedis(): Redis {
   if (!redis) {
     redis = new Redis(process.env.REDIS_URL!, {
+      ...redisConnectionOptions(process.env.REDIS_URL!),
       maxRetriesPerRequest: null, // required by BullMQ
     });
   }
